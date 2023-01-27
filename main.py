@@ -4,14 +4,13 @@ import random
 WIDTH = 600  # ширина игрового окна
 HEIGHT = 480 # высота игрового окна
 FPS = 30 # частота кадров в секунду
-
-# Цвет
 BLACK = (0, 0, 0)
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Для Экзамена)")
 clock = pygame.time.Clock()
+
 
 class Button_start(pygame.sprite.Sprite):
     def __init__(self, filename):
@@ -68,6 +67,9 @@ class White_circle(pygame.sprite.Sprite):
             if self.rect.x > WIDTH - 10:
                 self.kill()
             self.rect.x += 1
+        
+        if game_status == 'проигрыш':
+            self.kill()
 
 # сердчечко
 class Heart(pygame.sprite.Sprite):
@@ -79,73 +81,100 @@ class Heart(pygame.sprite.Sprite):
             center=(WIDTH/2, HEIGHT/2))
 
     def update(self):
-        keys = pygame.key.get_pressed()
+        # keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
             if self.rect.x > 191:
                 self.rect.x -= 3
-        elif keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT]:
             if self.rect.x < 380:
                 self.rect.x += 3
-        elif keys[pygame.K_UP]:
+        if keys[pygame.K_UP]:
             if self.rect.y > 135:
                 self.rect.y -= 3
-        elif keys[pygame.K_DOWN]:
+        if keys[pygame.K_DOWN]:
             if self.rect.y < 320:
                 self.rect.y += 3
 
 
 heart = Heart('images/heart.png')
 button_start = Button_start ('images/button_start.png')
-fon = Fon ('images/fon_menu.svg')
 
 all_sprites = pygame.sprite.Group()
-all_sprites.add(fon)
 all_sprites.add(button_start)
 
 enemies = []
-game_status = 'menu'
+game_status = 'menu'  # 3 состояния игры: menu, game, проигрыш
+
+def start_game():
+    '''
+    игра начинается
+    1. пустой список врагов
+    2. Добавлен спрайт фона и сердечка
+    3. изменен статус игры
+    '''
+    global enemies, game_status, all_sprites
+    enemies = []
+    game_status = 'game'
+    all_sprites = pygame.sprite.Group() 
+    all_sprites.add(Fon('images/fon_game.svg'))                   
+    all_sprites.add(heart)
+
+
+def click_start():
+    ''' 
+    клик мышкой по кнопке Start (не по спрайту, а по похожим координатам) или Enter
+    '''
+    global game_status, keys
+    pressed = pygame.mouse.get_pressed()
+    if pressed[0] or keys[pygame.K_RETURN]:
+        pos = pygame.mouse.get_pos()
+        if pos[0] > 206 and pos[0] < 397 and pos[1] > 209 and pos[1] < 273 or keys[pygame.K_RETURN]:
+            start_game()
+
+
+def new_enemies():
+    '''
+    с некоторой случайностю создаёт нового врага
+    all_sprites - все спрайты
+    enemies - список с врагами
+    '''
+    if random.randint(1,20) == 1:
+        new_enemi = White_circle('images/enemy.png')
+        all_sprites.add(new_enemi)
+        enemies.append(new_enemi)
+
+
+def check_collision():
+    '''
+    проверка столкновения сердечка и списка врагов
+    '''
+    global game_status, all_sprites
+    hits = pygame.sprite.spritecollide(heart, enemies, False)
+    if hits:
+        game_status = 'проигрыш'
+        all_sprites = pygame.sprite.Group()
+        all_sprites.add (Fon('images/fon_lose.jpg'))
+
 
 running = True
 while running:
+    # возможность закрыть окно с игрой
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        # перезапуск игры по Enter
-        if event.type == pygame.KEYDOWN:
-            if game_status == 'проигрыш':
-                if event.key == pygame.K_RETURN:
-                    enemies = []
-                    all_sprites.empty() 
-                    all_sprites.add(Fon('images/fon_game.svg'))                   
-                    all_sprites.add(Heart('images/heart.png'))
-                    game_status = 'game'
 
-    # мы в меню ждём клика по кнопке
+    keys = pygame.key.get_pressed() # получить нажатые клавишы
+
     if game_status == 'menu':   
-        pressed = pygame.mouse.get_pressed()
-        pos = pygame.mouse.get_pos()
-        if pressed[0]:
-            if pos[0] > 212 and pos[0] < 371 and pos[1] > 214 and pos[1] < 264:
-                all_sprites.remove(button_start) 
-                heart = Heart('images/heart.png') 
-                all_sprites.add(heart)
-                fon.image = pygame.image.load('images/fon_game.svg').convert_alpha()
-                game_status = 'game'
-
-    # генерация новых врагов
+        click_start() # клик мышкой по Start или Enter
     if game_status == 'game':
-        if random.randint(1,20) == 1:
-            new_enemi = White_circle('images/enemy.png')
-            all_sprites.add(new_enemi)
-            enemies.append(new_enemi)
+        new_enemies() # генерация новых врагов
+        check_collision() # столкновение с врагами
+    if game_status == 'проигрыш':
+        if keys[pygame.K_RETURN]:  # перезапуск игры по Enter  
+            start_game()
 
-        # столкновение
-        hits = pygame.sprite.spritecollide(heart, enemies, False)
-        if hits:
-            game_status = 'проигрыш'
-            all_sprites.empty()
-            all_sprites.add (Fon('images/fon_lose.jpg'))
-
+    # отрисовка 
     screen.fill(BLACK)
     all_sprites.draw(screen)
     all_sprites.update()
