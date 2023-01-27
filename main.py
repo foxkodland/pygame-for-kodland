@@ -1,139 +1,161 @@
-import pgzrun
+import pygame
 import random
 
-WIDTH = 590
-HEIGHT = 400
-TITLE = 'игра для экзамена'
-FPS = 30
+WIDTH = 600  # ширина игрового окна
+HEIGHT = 480 # высота игрового окна
+FPS = 30 # частота кадров в секунду
 
-fon = Actor ('menu.svg')
-heart = Actor ('heart', (250,250))
-button_start = Actor ('button_start.png',(280,200))
+# Цвета (R, G, B)
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 
-status_game = 'menu' # состояние игры: menu, game, game_over
-enemies = [] #список врагов
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Для Экзамена)")
+clock = pygame.time.Clock()
 
-def draw():
-    fon.draw()
+class Button_start(pygame.sprite.Sprite):
+    def __init__(self, filename):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(
+            filename).convert_alpha()
+        self.rect = self.image.get_rect(
+            center=(WIDTH/2, HEIGHT/2))
 
-    if status_game == 'menu':
-        button_start.draw()
 
-    if status_game == 'game':
-        heart.draw()
-        for d in enemies:
-            d['object'].draw()
+class Fon(pygame.sprite.Sprite):
+    def __init__(self, filename):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(
+            filename).convert_alpha()
+        self.rect = self.image.get_rect(
+            center=(WIDTH/2, HEIGHT/2))
+
+# враги
+class White_circle(pygame.sprite.Sprite):
+    def __init__(self, filename):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(
+            filename).convert_alpha()
+
+        r = random.randint (1,4)
+        if r == 1:
+            self.direction = "вверх"
+            self.rect = self.image.get_rect(center=(random.randint(191,402), HEIGHT - 10))
+        elif r == 2:
+            self.direction = "вниз"
+            self.rect = self.image.get_rect(center=(random.randint(191,402), 10))
+        elif r == 3:
+            self.direction = "влево"                                
+            self.rect = self.image.get_rect(center=(WIDTH - 10, random.randint(133,344)))
+        elif r == 4:
+            self.direction = "вправо"
+            self.rect = self.image.get_rect(center=(10, random.randint(133,344)))
     
-    if status_game == 'game_over':
-        screen.draw.text("Так жаль, но это проигрыш(", pos=(210, 100), color="white", fontsize = 24)
-        screen.draw.text("Нажимай ENTER, ты сможешь все исправить)", pos=(150, 130), color="white", fontsize = 24)
+    def update(self):
+        if self.direction == 'вверх':
+            self.rect.y -= 1
+            if self.rect.y < 10:
+                self.kill()
+        elif self.direction == 'вниз':
+            self.rect.y += 1
+            if self.rect.y > HEIGHT - 10:
+                self.kill()
+        elif self.direction == 'влево':
+            if self.rect.x < 10:
+                self.kill()
+            self.rect.x -= 1
+        elif self.direction == 'вправо':
+            if self.rect.x > WIDTH - 10:
+                self.kill()
+            self.rect.x += 1
+
+# сердчечко
+class Heart(pygame.sprite.Sprite):
+    def __init__(self, filename):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(
+            filename).convert_alpha()
+        self.rect = self.image.get_rect(
+            center=(WIDTH/2, HEIGHT/2))
+
+    def update(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            if self.rect.x > 191:
+                self.rect.x -= 3
+        elif keys[pygame.K_RIGHT]:
+            if self.rect.x < 380:
+                self.rect.x += 3
+        elif keys[pygame.K_UP]:
+            if self.rect.y > 135:
+                self.rect.y -= 3
+        elif keys[pygame.K_DOWN]:
+            if self.rect.y < 320:
+                self.rect.y += 3
 
 
-def create_new_enemy():
-    '''
-    по рандомной случайности создаётся новый враг в одной из сторон игры
-    direction - в каком направлении он будет потом двигаться
-    '''
-    global enemies
-    if random.randint(1,30) == 1:
-        # добавим нового врага
-        rand = random.randint (1,4)
-        if rand == 1:
-            direction = "вверх"
-            y = HEIGHT
-            x = random.randint(200, 390)
-        elif rand == 2:
-            direction = "вниз"
-            y = 0
-            x = random.randint(200, 390)
-        elif rand == 3:
-            direction = "вправо"
-            y = random.randint(120, 315)
-            x = 0
-        else:
-            direction = "влево"
-            y = random.randint(120, 315)
-            x = WIDTH
+heart = Heart('images/heart.png')
+button_start = Button_start ('images/button_start.png')
+fon = Fon ('images/fon_menu.svg')
 
-        d = {
-            'object': Actor("enemy.png", (x, y)),
-            'direction': direction
-        }
-        enemies.append(d)
+all_sprites = pygame.sprite.Group()
+all_sprites.add(fon)
+all_sprites.add(button_start)
 
+enemies = []
+game_status = 'menu'
 
-def move_enemies():
-    '''
-    движение врагов
-    '''
-    global enemies
-    for d in enemies:
-        if d['direction'] == 'вверх':
-            d['object'].y -= 1
-            if d['object'].y < 10:
-                enemies.remove(d)
-        elif d['direction'] == 'вниз':
-            d['object'].y += 1
-            if d['object'].y > HEIGHT - 10:
-                enemies.remove(d)
-        elif d['direction'] == 'влево':
-            d['object'].x -= 1
-            if d['object'].x < 10:
-                enemies.remove(d)
-        else:
-            d['object'].x += 1
-            if d['object'].x > WIDTH - 10:
-                enemies.remove(d)
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        # перезапуск игры по Enter
+        if event.type == pygame.KEYDOWN:
+            if game_status == 'проигрыш':
+                if event.key == pygame.K_RETURN:
+                    enemies = []
+                    all_sprites.empty() 
+                    all_sprites.add(Fon('images/fon_game.svg'))                   
+                    all_sprites.add(Heart('images/heart.png'))
+                    game_status = 'game'
 
-def check_collision():
-    '''
-    проверка на столкновение с врагами
-    '''
-    global heart, enemies, status_game, fon
-    for d in enemies:
-        if heart.colliderect(d['object']):
-            status_game = 'game_over'
-            fon.image = 'menu.svg'
+    # мы в меню ждём клика по кнопке
+    if game_status == 'menu':   
+        pressed = pygame.mouse.get_pressed()
+        pos = pygame.mouse.get_pos()
+        if pressed[0]:
+            if pos[0] > 212 and pos[0] < 371 and pos[1] > 214 and pos[1] < 264:
+                all_sprites.remove(button_start) 
+                heart = Heart('images/heart.png') 
+                all_sprites.add(heart)
+                fon.image = pygame.image.load('images/fon_game.svg').convert_alpha()
+                game_status = 'game'
 
-def move_heart():
-    '''
-    движение главного персонажа
-    '''
-    global heart
-    if keyboard.left and heart.x > 200:
-        heart.x -= 5
-    elif keyboard.right and heart.x < 390:
-        heart.x+= 5
-    elif keyboard.up and heart.y > 120:
-        heart.y -= 5
-    elif keyboard.down and heart.y < 315:
-        heart.y += 5 
+    # генерация новых врагов
+    if game_status == 'game':
+        if random.randint(1,20) == 1:
+            new_enemi = White_circle('images/enemy.png')
+            all_sprites.add(new_enemi)
+            enemies.append(new_enemi)
 
-def update(dt):
-    global status_game
+        # столкновение
+        hits = pygame.sprite.spritecollide(heart, enemies, False)
+        if hits:
+            game_status = 'проигрыш'
+            all_sprites.empty()
+            all_sprites.add (Fon('images/fon_lose.jpg'))
 
-    if status_game == 'game':
-        move_heart()
-        check_collision() 
-        create_new_enemy()
-        move_enemies()    
-    
-
-def on_mouse_down(button, pos):
-    global status_game, button_start, fon 
-    if status_game == 'menu' and button_start.collidepoint(pos):
-        fon.image = "bg-game.svg"
-        status_game = 'game'
-
-def on_key_down (key):
-    '''
-    перезапуск игры
-    '''
-    global status_game, enemies, fon
-    if keyboard.K_RETURN and status_game == 'game_over':
-        fon.image = 'bg-game.svg'
-        enemies = []
-        status_game = 'game'
+    screen.fill(BLACK)
+    all_sprites.draw(screen)
+    all_sprites.update()
+    pygame.display.update()
+    clock.tick(FPS)
 
 
-pgzrun.go()
+pygame.quit()
+quit()
